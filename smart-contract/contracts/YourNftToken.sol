@@ -2,12 +2,13 @@
 
 pragma solidity >=0.8.9 <0.9.0;
 
-import 'erc721a/contracts/extensions/ERC721AQueryable.sol';
+import './ERC721AQueryable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
+import "operator-filter-registry/src/DefaultOperatorFilterer.sol";
 
-contract YourNftToken is ERC721AQueryable, Ownable, ReentrancyGuard {
+contract YourNftToken is DefaultOperatorFilterer, ERC721AQueryable, Ownable, ReentrancyGuard {
 
   using Strings for uint256;
 
@@ -76,7 +77,7 @@ contract YourNftToken is ERC721AQueryable, Ownable, ReentrancyGuard {
     return 1;
   }
 
-  function tokenURI(uint256 _tokenId) public view virtual override returns (string memory) {
+  function tokenURI(uint256 _tokenId) public view virtual override(ERC721A, IERC721Metadata) returns (string memory) {
     require(_exists(_tokenId), 'ERC721Metadata: URI query for nonexistent token');
 
     if (revealed == false) {
@@ -145,4 +146,34 @@ contract YourNftToken is ERC721AQueryable, Ownable, ReentrancyGuard {
   function _baseURI() internal view virtual override returns (string memory) {
     return uriPrefix;
   }
+
+  // implementing Operator Filter Registry
+    // https://opensea.io/blog/announcements/on-creator-fees
+    // https://github.com/ProjectOpenSea/operator-filter-registry#usage
+
+    function setApprovalForAll(address operator, bool approved) public override(ERC721A, IERC721) onlyAllowedOperatorApproval(operator) {
+        super.setApprovalForAll(operator, approved);
+    }
+
+    function approve(address operator, uint256 tokenId) public override(ERC721A, IERC721) onlyAllowedOperatorApproval(operator) {
+        super.approve(operator, tokenId);
+    }
+
+    function transferFrom(address from, address to, uint256 tokenId) public override(ERC721A, IERC721) onlyAllowedOperator(from) {
+        super.transferFrom(from, to, tokenId);
+    }
+
+    function safeTransferFrom(address from, address to, uint256 tokenId) public override(ERC721A, IERC721) onlyAllowedOperator(from) {
+        super.safeTransferFrom(from, to, tokenId);
+    }
+
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data)
+        public
+        override(ERC721A, IERC721)
+        onlyAllowedOperator(from)
+    {
+        super.safeTransferFrom(from, to, tokenId, data);
+    }
+
+  
 }
